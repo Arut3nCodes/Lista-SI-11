@@ -11,29 +11,30 @@ def timeToMinutes(timeStr):
 
 def edgeCostByTime(graph : networkx.MultiDiGraph, startNode, endNode, currTime):
     currEdge = None
+    print(startNode + ' ' + endNode + ' ' +currTime, end=" ")
     edges = graph[startNode][endNode].items()
-    edges = filter(lambda x: timeToMinutes(x[1]['departure_time']) > timeToMinutes(currTime), edges)
+    print(len(edges), end=" ")
+    edges = filter(lambda x: timeToMinutes(x[1]['departure_time']) >= timeToMinutes(currTime), edges)
     edges = sorted(edges, key=lambda x: timeToMinutes(x[1]['departure_time']))
-    if(edges):
-        currEdge = edges.pop()
+    print(len(edges))
+    if edges:
+        currEdge = (next(iter(edges)))
         if currEdge != None:
-            return timeToMinutes(currEdge[1]['arrival_time']) - timeToMinutes(currTime), currEdge[1]['arrival_time'], currEdge
+            return timeToMinutes(currEdge[1]['arrival_time']) - timeToMinutes(currTime), currEdge[1]['arrival_time'], currEdge[1]
     return None
 def edgeCostByTimeAndChangingLines(graph, startNode, endNode, currTime, currLine):
     currEdge = None
-    for (start, end, edge) in graph.edges(data=True):
-        if start == startNode and end == endNode:
-            if timeToMinutes(edge['departure_time']) >= timeToMinutes(currTime):
-                if currEdge == None:
-                    currEdge = edge
-                else:
-                    if timeToMinutes(currEdge['departure_time']) >= timeToMinutes(edge['departure_time']):
-                        currEdge = edge
-                if currLine == None:
-                    currLine = edge['line']
-    if currEdge != None:
-        changeLinePunishment = 30 if currLine != currEdge['line'] else 0
-        return (timeToMinutes(currEdge['arrival_time']) - timeToMinutes(currTime)) + changeLinePunishment, currEdge['arrival_time'], edge
+    print(startNode + ' ' + endNode + ' ' + currTime, end=" ")
+    edges = graph[startNode][endNode].items()
+    print(len(edges), end=" ")
+    edges = filter(lambda x: timeToMinutes(x[1]['departure_time']) >= timeToMinutes(currTime), edges)
+    edges = sorted(edges, key=lambda x: timeToMinutes(x[1]['departure_time']))
+    print(len(edges))
+    if edges:
+        currEdge = (next(iter(edges)))
+        if currEdge != None:
+            changeLinePunishment = 30 if currLine != currEdge['line'] else 0
+            return (timeToMinutes(currEdge['arrival_time']) - timeToMinutes(currTime)) + changeLinePunishment, currEdge['arrival_time'], currEdge
     return None
 
 def heurestic(graph, startNode, endNode):
@@ -57,7 +58,7 @@ def dijkstraAlgorithm(graph, startNode, endNode, departureTime):
     checkedNodes = set()
     nodeQueue = [(0, startNode)]
     costDict = {startNode: 0}
-    pathDict = {startNode: ([startNode], departureTime)}
+    pathDict = {startNode: ([startNode], departureTime, [])}
 
     for node in graph.nodes():
         if(node not in costDict.keys()):
@@ -66,7 +67,7 @@ def dijkstraAlgorithm(graph, startNode, endNode, departureTime):
     while nodeQueue:
         (currNodeCost, currNode) = heapq.heappop(nodeQueue)
         print(currNode)
-        (currPath, currTime) = pathDict[currNode]
+        (currPath, currTime, currLineList) = pathDict[currNode]
         #print(list(graph.neighbors(currNode)))
         if(currNode == endNode):
             break
@@ -74,18 +75,18 @@ def dijkstraAlgorithm(graph, startNode, endNode, departureTime):
             costTuple = edgeCostByTime(graph, currNode, neighbor, currTime)
             #print(neighbor, costTuple)
             if costTuple is not None:
-                edgeCost, arrivalTime, _ = costTuple
+                edgeCost, arrivalTime, data = costTuple
                 currCost = currNodeCost + edgeCost
                 if neighbor not in checkedNodes and neighbor is not endNode:
-                    heapq.heappush(nodeQueue, (currCost + edgeCost, neighbor))
+                    heapq.heappush(nodeQueue, (currCost, neighbor))
                     checkedNodes.add(neighbor)
                 if (neighbor not in costDict.keys()):
                     costDict[neighbor] = currCost
-                    pathDict[neighbor] = (currPath + [neighbor], arrivalTime)
+                    pathDict[neighbor] = (currPath + [neighbor], arrivalTime, currLineList + [data['line']])
                 else:
                     if (costDict[neighbor] > edgeCost):
                         costDict[neighbor] = currCost
-                        pathDict[neighbor] = (currPath + [neighbor], arrivalTime)
+                        pathDict[neighbor] = (currPath + [neighbor], arrivalTime, currLineList + [data['line']])
     #print(pathDict, costDict)
     return pathDict[endNode], costDict[endNode]
 
